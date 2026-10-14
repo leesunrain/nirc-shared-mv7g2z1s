@@ -1,0 +1,6 @@
+원클릭 배포기 v1.7 업데이트 전용 ZIP
+기존 프로젝트: oneclick-app-deployer-safe-v14
+기존 Production URL: https://oneclick-app-deployer-safe-v14.vercel.app/
+새 Vercel 프로젝트를 만들지 마세요. 기존 프로젝트의 Production으로만 배포하세요.
+기존 PWA 및 사용자 브라우저 데이터는 지우지 마세요.
+실제 배포는 이 ZIP 생성과 별도입니다. 배포 후 기존 URL과 기능을 직접 확인하세요.
