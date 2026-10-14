@@ -1,0 +1,11 @@
+하고 싶다면 v1.4 — 기존 앱 업데이트 전용
+고정 프로젝트 ID: prj_KkOGDL6T6eaiTX8OuTYoIgXdHp3W
+고정 프로젝트 이름: nirc-app-261014-0813
+고정 주소: https://nirc-app-261014-0813.vercel.app/
+
+중요: ZIP 업로드 서비스에서 새 프로젝트를 만들지 마세요. 반드시 기존 프로젝트에 연결하여 Production으로 배포하세요.
+Vercel CLI 예: vercel link (기존 프로젝트 선택) -> vercel deploy --prod
+배포 후 고정 주소에서 상단 v1.4 및 STEP 05가 보이는지 확인하세요.
+기존 홈화면 바로가기 삭제 금지. localStorage 저장키 want-marathon-v1 유지.
+
+기록 입력 예: 4230 → 42:30, 405 → 4:05, 33000 → 3:30:00. 입력칸을 벗어나거나 분석 버튼을 누르면 자동 형식 변환.

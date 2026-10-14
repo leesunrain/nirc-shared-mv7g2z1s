@@ -1,116 +1,12 @@
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0f172a">
-  <title>원클릭 앱 배포기</title>
-  <meta name="description" content="ZIP 하나로 GitHub 저장과 Vercel 배포를 자동화합니다.">
-  <link rel="icon" href="/icon.svg">
-  <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-<main class="wrap">
-  <section class="hero"><h1>원클릭 앱 배포기</h1><p>ChatGPT에서 만든 앱 ZIP을 넣으면 GitHub에 저장하고 Vercel Production까지 한 번에 배포합니다.</p></section>
-
-  <div class="grid two">
-    <section class="card">
-      <h2>1. 최초 1회 연결</h2>
-      <label class="label" for="githubToken">GitHub Personal Access Token</label>
-      <input class="input secret" id="githubToken" type="password" placeholder="github_pat_..." autocomplete="off">
-      <div class="small-actions"><button class="btn secondary" id="testGithub">GitHub 연결 확인</button><span class="badge center-self" id="githubStatus">확인 전</span></div>
-
-      <label class="label" for="vercelToken">Vercel Access Token</label>
-      <input class="input secret" id="vercelToken" type="password" placeholder="Vercel token" autocomplete="off">
-      <div class="small-actions"><button class="btn secondary" id="testVercel">Vercel 연결 확인</button><span class="badge center-self" id="vercelStatus">확인 전</span></div>
-
-      <details class="spacer"><summary class="summary">Supabase 연결 (2차 기능 준비)</summary>
-        <label class="label" for="supabaseToken">Supabase Personal Access Token</label>
-        <input class="input secret" id="supabaseToken" type="password" placeholder="sbp_..." autocomplete="off">
-        <div class="small-actions"><button class="btn secondary" id="testSupabase">Supabase 확인</button><span class="badge center-self" id="supabaseStatus">확인 전</span></div>
-      </details>
-
-      <label class="check"><input type="checkbox" id="remember" checked><span><b>이 기기에 토큰 기억</b><br><span class="muted">개인 기기에서만 사용하세요. 토큰은 브라우저 저장소에만 저장하며 GitHub 저장소에는 넣지 않습니다.</span></span></label>
-      <button class="btn secondary spacer" id="clearTokens">저장된 토큰 지우기</button>
-    </section>
-
-    <section class="card">
-      <h2>2. 앱 ZIP 선택</h2>
-      <label class="drop" for="zipInput"><strong id="zipLabel">ZIP 파일을 선택하세요</strong><span class="muted">index.html 정적앱 또는 package.json 프로젝트 지원</span><input id="zipInput" type="file" accept=".zip,application/zip" class="hidden"></label>
-      <div id="fileInfo" class="hidden">
-        <div class="filemeta" id="fileMeta"></div>
-        <div class="status"><span>프로젝트 구조</span><span class="badge" id="structureStatus">확인</span></div>
-        <div class="note hidden" id="ignoredNote"></div>
-        <div class="note hidden" id="sizeNote">현재 1차 버전 제한(압축 해제 후 약 2.6MB)을 넘었습니다.</div>
-        <div class="note hidden" id="supabaseNote">Supabase 파일을 감지했습니다. 이번 1차 버전은 GitHub+Vercel 배포까지 자동 처리하고 DB 스키마 자동 적용은 2차 기능으로 연결합니다.</div>
-      </div>
-      <div class="result error hidden" id="parseError"></div>
-    </section>
-  </div>
-
-  <section class="card spacer">
-    <h2>3. 배포 설정</h2>
-    <div id="historyWrap">
-      <label class="label" for="historySelect">기존 앱 빠른 선택</label>
-      <select class="select" id="historySelect"><option value="">자동 찾기 / 새 앱</option></select>
-      <button type="button" class="btn" id="refreshProjects">Vercel 실제 목록 새로고침</button><p class="muted mini" id="projectLookupStatus">실제 프로젝트 ID 확인 후 기존 앱을 업데이트합니다.</p><div id="appCards" class="app-cards"></div>
-      <p class="muted mini">수정 앱은 반드시 여기서 기존 앱을 먼저 선택하세요. 선택 즉시 GitHub/Vercel 이름과 주소가 잠깁니다. 이후 ZIP 파일명이 v2·FINAL·수정본처럼 달라도 같은 주소로만 업데이트됩니다.</p>
-      <div class="readonly-box" id="autoDecision">ZIP을 선택하세요</div>
-<div class="readonly-box muted-box" id="detectDetail">GitHub: 대기 · Vercel: 대기</div>
-      <p class="muted mini">ZIP 내부 식별정보와 GitHub/Vercel 실제 목록을 함께 확인해 기존 앱을 자동으로 찾습니다. ZIP 파일명이 달라도 같은 앱이면 안전하게 업데이트합니다.</p>
-    </div>
-    <div class="row two">
-      <div><label class="label" for="mode">작업</label><div class="readonly-box" id="modeLabel">자동 판단 대기</div>
-<select id="mode" class="hidden" aria-hidden="true">
-<option value="create">새 앱 배포</option>
-<option value="update">기존 앱 업데이트</option>
-</select></div>
-      <div><label class="label" for="visibility">GitHub 공개 여부</label><select class="select" id="visibility"><option value="private">비공개 (권장)</option><option value="public">공개</option></select></div>
-    </div>
-    <div class="row two">
-      <div><label class="label" for="appName">앱 표시 이름</label><input class="input" id="appName" placeholder="예: 온도보정 앱"></div>
-      <div><label class="label" for="repoName">GitHub/Vercel 이름</label><input class="input" id="repoName" placeholder="예: temperature-correction"><div class="muted mini" id="repoLockNote"></div><div class="readonly-box hidden" id="lockedAddress"></div></div>
-    </div>
-    <p class="muted">GitHub/Vercel 이름은 URL에 사용되므로 영문·숫자·하이픈을 권장합니다. 기존 앱 업데이트는 처음 배포한 이름을 그대로 사용하세요.</p>
-
-    <div id="safetyPanel" class="safety-panel">
-      <div class="safety-title">🛡️ 덮어쓰기 방지</div>
-      <div class="safety-row"><b>선택 ZIP</b><span id="safeZip">없음</span></div>
-      <div class="safety-row"><b>대상 앱</b><span id="safeTarget">없음</span></div>
-      <div class="safety-row"><b>검증</b><span class="badge warn" id="safeStatus">확인 필요</span></div>
-      <p class="muted mini">기존 앱을 빠른 선택에서 지정하면 저장된 앱 고유 ID와 GitHub 안전정보를 확인한 뒤 업데이트합니다. 프로젝트 이름은 자동으로 고정되어 기존 Vercel 주소가 유지됩니다.</p>
-    </div>
-
-    <div class="progress"><div id="progressBar"></div></div>
-    <div class="status"><b id="stage">준비</b><span class="badge" id="progressText">0%</span></div>
-    <button class="btn big spacer" id="deployBtn" disabled>🚀 GitHub 저장 + Vercel 자동 배포</button>
-    <div class="result error hidden" id="deployError"><h3>배포 실패</h3><div id="deployErrorText"></div></div>
-    <div class="result hidden" id="deployResult"><h3 id="resultTitle">✅ 배포 완료</h3><div class="kv"><b>GitHub</b><a class="link" id="repoLink" target="_blank" rel="noreferrer"></a><b>Vercel</b><a class="link" id="vercelLink" target="_blank" rel="noreferrer"></a><b>상태</b><span id="vercelState"></span><b>Commit</b><span class="secret" id="commitSha"></span></div><a class="btn big spacer launch-btn hidden" id="launchBtn" target="_blank" rel="noreferrer">🚀 앱 바로 실행</a></div>
-  </section>
-
-
-  <section class="card spacer" id="cleanupCard">
-    <h2>4. 앱 정리 관리</h2>
-    <p class="muted">GitHub 저장소와 Vercel 프로젝트를 실제로 조회해 중복·구버전·한쪽만 남은 앱을 정리합니다. 현재 배포기와 선택 중인 대표 앱은 자동 보호됩니다.</p>
-    <div class="small-actions cleanup-actions">
-      <button class="btn secondary" id="scanApps">🔎 실제 앱 목록 불러오기</button>
-      <button class="btn secondary" id="clearLocalHistory">🧹 이 기기 과거 목록만 정리</button>
-    </div>
-    <div class="readonly-box muted-box hidden" id="cleanupSummary"></div>
-    <div id="cleanupList" class="cleanup-list hidden"></div>
-    <div id="cleanupDeleteBox" class="cleanup-delete hidden">
-      <div class="note danger-note"><b>주의:</b> 아래 삭제는 브라우저 목록이 아니라 GitHub 저장소/Vercel 프로젝트 자체를 삭제합니다. 복구가 어려울 수 있습니다.</div>
-      <label class="label" for="cleanupConfirm">선택한 앱을 실제 삭제하려면 <b>선택 삭제</b>라고 입력</label>
-      <input class="input" id="cleanupConfirm" placeholder="선택 삭제">
-      <button class="btn danger spacer-sm" id="deleteSelectedApps" disabled>🗑️ 선택한 구버전/중복 앱 실제 삭제</button>
-    </div>
-    <div class="result hidden" id="cleanupResult"></div>
-    <div class="result error hidden" id="cleanupError"></div>
-  </section>
-
-  <section class="card spacer"><h2>사용 순서</h2><div class="muted"><b>처음 한 번:</b> GitHub 토큰과 Vercel 토큰 입력 → 연결 확인<br><b>새 앱:</b> ChatGPT가 만든 ZIP 선택 → 앱 이름 확인 → 자동 배포<br><b>수정:</b> 기존 앱 선택(주소 잠금) → 수정 ZIP 선택 → 자동 업데이트</div><div class="note">비밀번호 자체는 입력하지 않습니다. GitHub/Vercel에서 발급한 토큰만 사용합니다. 토큰이 유출되었다고 의심되면 해당 서비스에서 즉시 폐기하세요.</div></section>
-  <div class="footer">OneClick App Deployer v1.7 CLEANUP + ADDRESS LOCK+ · GitHub + Vercel 자동화 · Supabase 자동 스키마 연결은 다음 단계</div>
-</main>
-<script type="module" src="/app.js"></script>
-</body>
-</html>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101c34"><meta http-equiv="Cache-Control" content="no-cache"><link rel="manifest" href="manifest.webmanifest"><title>하고 싶다면 | 마라톤 목표 역산</title><style>
+:root{font-family:system-ui,-apple-system,'Noto Sans KR',sans-serif;color:#eaf2ff;background:#091326}*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1831,#102746 55%,#081426);min-height:100vh}.wrap{max-width:760px;margin:auto;padding:24px 17px 90px}.eyebrow{color:#7ee6d2;font-weight:800;letter-spacing:2px;font-size:12px}h1{font-size:40px;margin:8px 0 0;letter-spacing:-2px}h2{font-size:21px;margin:0 0 14px}.muted{color:#a9bcd4;line-height:1.65;font-size:13px}.hero{padding:18px 4px 25px}.pill{display:inline-block;background:#1c3654;border:1px solid #3e617c;border-radius:99px;padding:7px 13px;color:#aeece2;font-size:12px}.card{background:#14253f;border:1px solid #304664;border-radius:22px;padding:22px;margin-bottom:17px;box-shadow:0 15px 35px #0002}.step{font-size:12px;font-weight:800;color:#75dfcb;margin-bottom:8px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px;margin:9px 0}.field label{font-size:12px;color:#b9cbe1}input,select{width:100%;border:1px solid #45607c;border-radius:11px;background:#0b1b31;color:#fff;padding:12px 11px;font-size:15px;min-width:0}input:focus,select:focus{outline:2px solid #54d5be}button{border:0;border-radius:12px;padding:14px 17px;font-weight:800;cursor:pointer;font-size:14px}.primary{background:linear-gradient(110deg,#56e6c5,#92edab);color:#06272b;width:100%}.secondary{background:#243e5c;color:#e7f5ff;border:1px solid #45617e}.actions{display:flex;gap:9px;flex-wrap:wrap}.actions button{flex:1}.stat{background:#0b1d35;border-radius:15px;padding:15px}.stat strong{display:block;font-size:21px;color:#8cead5;margin-top:5px}.stat small{color:#a7bdd3}.hidden{display:none!important}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:11px 6px;border-bottom:1px solid #31445e;text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{color:#91dcca}td{color:#e9f2fc}.scroll{overflow-x:auto}.note{background:#0b2135;border-left:3px solid #75dcca;padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.65;margin:12px 0}.tag{border-radius:99px;padding:3px 7px;font-size:11px;background:#274b62;color:#a9f4df}.footer{text-align:center;color:#8ba6c1;font-size:11px;padding:15px}#report{background:#14253f;border-radius:16px;padding:2px} @media(max-width:400px){h1{font-size:34px}.card{padding:17px}.grid{gap:8px}}
+details{margin:10px 0;border:1px solid #385674;border-radius:13px;background:#0c2038;overflow:hidden}summary{cursor:pointer;padding:16px 13px;color:#9af0dc;font-weight:800;line-height:1.4}details[open] summary{border-bottom:1px solid #385674}.guide{padding:7px 15px 15px;font-size:13px;line-height:1.8;color:#dceafb}.guide p{margin:12px 0}.equation{font-weight:700;color:#fff;overflow-wrap:anywhere}</style></head><body><main class="wrap"><header class="hero"><div class="eyebrow">MARATHON GOAL LAB · v1.4</div><h1>하고 싶다면<span style="color:#67e5c6">.</span></h1><p class="muted">목표를 정하고, 현재의 나를 입력하세요.<br>기록의 가능성과 마라톤 준비도를 함께 살펴봅니다.</p><span class="pill">🎯 목표 역산 · 📈 경기력 비교 · 🏃 준비도 분석</span></header>
+<section class="card"><div class="step">STEP 01 / 나의 목표</div><h2>풀코스, 얼마에 완주하고 싶나요?</h2><div class="grid"><div class="field"><label>목표 시간</label><input id="goalH" type="number" min="1" max="9" value="2"></div><div class="field"><label>목표 분</label><input id="goalM" type="number" min="0" max="59" value="59"></div><div class="field"><label>목표 초</label><input id="goalS" type="number" min="0" max="59" value="59"></div><div class="stat"><small>목표 평균 페이스</small><strong id="goalPace">4:16/km</strong></div></div></section>
+<section class="card"><div class="step">STEP 02 / 나의 현재 상태</div><h2>지금의 나를 알려주세요</h2><div class="grid"><div class="field"><label>성별</label><select id="sex"><option value="M">남성</option><option value="F">여성</option></select></div><div class="field"><label>나이 (선택)</label><input id="age" type="number" min="10" max="100" placeholder="예: 45"></div><div class="field"><label>러닝 경력 (년)</label><input id="years" type="number" min="0" max="70" step="0.5" placeholder="예: 3"></div><div class="field"><label>최근 3개월 평균 월 마일리지 (km)</label><input id="monthly" type="number" min="0" max="2000" placeholder="예: 250"></div><div class="field"><label>주간 러닝 횟수</label><input id="weekly" type="number" min="0" max="14" placeholder="예: 5"></div><div class="field"><label>최근 3개월 최장거리 (km)</label><input id="longest" type="number" min="0" max="100" step="0.1" placeholder="예: 30"></div><div class="field"><label>최근 3개월 30km 이상 훈련 횟수</label><input id="longCount" type="number" min="0" max="100" placeholder="예: 3"></div></div><p class="muted">기록은 아는 종목만 입력해도 됩니다. 최근 기록일수록 현재 상태를 잘 반영합니다.</p><div class="grid" id="raceInputs"></div><button class="primary" id="analyze" style="margin-top:19px">내 목표 달성 분석하기 →</button></section>
+<section class="hidden" id="results"><div id="report"><section class="card"><div class="step">STEP 03 / 목표 역산 결과</div><h2>목표까지 얼마나 남았을까?</h2><div class="grid"><div class="stat"><small>풀코스 목표</small><strong id="rGoal"></strong></div><div class="stat"><small>목표 평균 페이스</small><strong id="rPace"></strong></div></div><p class="muted">각 모델의 목표 동등 기록과 현재 개인 기록을 비교합니다. 감독님 모델은 경험식이며, 통합값은 감독님·VDOT의 정방향 예측 평균을 역산합니다.</p><div class="scroll"><table><thead><tr><th>거리</th><th>감독님</th><th>VDOT*</th><th>리겔</th><th>통합*</th><th>내 기록</th><th>차이</th></tr></thead><tbody id="tableBody"></tbody></table></div><p class="muted">* VDOT는 Daniels-Gilbert 경기력 방정식 기반 수치 역산. 1,000m는 장거리 동등 기록의 신뢰도가 낮아 별도 참고로만 표시합니다. 차이는 내 기록 − 통합 기준(양수면 느림).</p></section><section class="card"><div class="step">STEP 04 / 경기력 & 준비도</div><h2>나의 마라톤 분석</h2><div id="insights"></div><div class="note">이론적 동등 기록 ≠ 실제 완주 보장. 훈련 지속성, 장거리 적응, 보급, 코스, 기온, 당일 컨디션에 따라 결과가 달라집니다. 성별은 감독님 경험식에만 적용되며 VDOT·리겔은 성별에 따른 임의 보정을 하지 않습니다.</div></section></div><div class="actions" style="margin:14px 0"><button class="secondary" id="saveImage">📷 결과 이미지 저장</button><button class="secondary" id="share">📤 결과 공유</button></div></section><section class="card" id="formulaGuide"><div class="step">STEP 05 / 계산법 안내</div><h2>📘 계산 공식과 해석 방법</h2><p class="muted">아래 항목을 누르면 실제 계산식과 역산 방법을 확인할 수 있습니다. 모든 시간은 계산할 때 초 단위로 처리하고 표시할 때 반올림합니다.</p>
+<details open><summary>① 통합 계산 · 기본 비교 기준</summary><div class="guide"><p><b>정방향 계산</b><br>통합 풀 예상시간 = (감독님 방식 풀 예상시간 + VDOT 방식 풀 예상시간) ÷ 2</p><p><b>이번 앱의 역산</b><br>입력한 목표 풀코스 시간과 위 평균이 같아지도록 5km·10km·하프 기록을 수치적으로 찾습니다.</p><p>즉, (F감독님(t) + FVDOT(t)) / 2 = 목표 풀 시간인 t를 구합니다. <b>각 모델의 역산 기록을 단순 평균한 값은 아닙니다.</b> 리겔은 통합 계산에 포함되지 않습니다.</p><p class="muted">두 모델에 50%씩 가중치를 준 사용자 정의 기준이며, 검증된 최적 가중치는 아닙니다.</p></div></details>
+<details><summary>② 리겔(Riegel) · 거리 비율 공식</summary><div class="guide"><p class="equation">T₂ = T₁ × (D₂ / D₁)<sup>1.06</sup></p><p>T₁: 기준 거리 기록 · D₁: 기준 거리 · T₂: 환산 기록 · D₂: 환산 거리</p><p>이번 앱은 T₁=목표 풀 기록, D₁=42.195km로 두고 5km·10km·하프를 계산합니다. <b>지수는 1.06</b>이며 1÷1.06이 아닙니다.</p><p class="muted">1.06은 대표적인 경험 지수이며 모든 선수에게 정확하게 들어맞지는 않습니다. 특히 1km와 풀코스 간 환산은 신뢰도가 낮아 표시하지 않습니다.</p></div></details>
+<details><summary>③ VDOT · 잭 다니엘스 경기력 환산</summary><div class="guide"><p>속도 v = 거리(m) ÷ 시간(분)</p><p class="equation">VO₂ = −4.60 + 0.182258v + 0.000104v²</p><p class="equation">VDOT = VO₂ / [0.8 + 0.1894393e<sup>−0.012778t</sup> + 0.2989558e<sup>−0.1932605t</sup>]</p><p>여기서 t는 <b>시간(분)</b>입니다. 목표 풀코스에서 구한 VDOT와 동일한 VDOT를 갖는 각 거리 기록을 반복 계산으로 찾습니다.</p><p class="muted">동등 경기력의 수학적 추정이며 개인의 장거리 적응, 훈련량, 기온 등은 별도로 반영하지 않습니다. 1km는 계산 범위에서 제외합니다.</p></div></details>
+<details><summary>④ 감독님 공식 · 마스터즈 경험식</summary><div class="guide"><p class="equation">10km = 2 × 5km + 1분 30초</p><p><b>하프 = 2 × 10km + 가산시간</b><br>10km 40분 이하: +8분<br>40분 초과~50분: +9분<br>50분 초과: +10분</p><p class="equation">풀 = 2 × 하프 + 남성 13분 / 여성 10분</p><p>목표 풀 기록에서 하프 → 10km → 5km 순으로 역산합니다. <b>10km 경계에서 가산시간이 바뀌므로</b> 일부 목표 기록에는 정확한 역산 해가 없을 수 있어 ‘—’로 표시합니다.</p><p class="muted">이 공식은 개인 경험을 반영한 모델로, 남녀별 가산시간이 보편적인 생리학적 차이를 증명하는 것은 아닙니다.</p></div></details>
+<details><summary>⑤ 기록 차이와 마일리지 해석</summary><div class="guide"><p><b>기록 차이 = 내 현재 기록 − 통합 목표 기록</b><br>양수는 목표보다 느림, 음수는 목표보다 빠름을 뜻합니다.</p><p>월 마일리지·훈련 횟수·장거리 훈련은 <b>실제 완주 준비도를 설명하는 참고 정보</b>입니다. 이론적 동등 기록에 도달해도 풀코스 목표 달성이 보장되지는 않습니다.</p><p class="muted">나이와 성별은 VDOT·리겔 결과에 임의 보정하지 않습니다. 성별은 감독님 경험식에만 반영됩니다. 나이·경력은 현재 버전에서 참고 입력값이며 직접적인 기록 보정에 쓰지 않습니다.</p></div></details>
+<div class="note">📌 <b>핵심:</b> 통합 = 감독님 + VDOT의 정방향 예측 평균을 역산 / 리겔 = 거리 비율의 1.06제곱 / VDOT = 동일 경기력 점수 / 감독님 = 경험식. 이론적 가능성과 실제 마라톤 준비도는 구분해서 보세요.</div></section><div class="footer">하고 싶다면 · 기록은 가능성을, 훈련은 준비도를 말합니다.<br>기록 및 설정은 이 기기에만 저장됩니다.</div></main><script src="app.js?v=1.4"></script></body></html>
